@@ -11,6 +11,7 @@ import 'core/services/api_service.dart';
 import 'features/auth/providers/auth_provider.dart';
 import 'features/kitchen/providers/kitchen_provider.dart';
 import 'features/menu/providers/menu_provider.dart';
+import 'features/menu/providers/menu_item_image_provider.dart';
 import 'features/order/providers/order_provider.dart';
 import 'features/chat/providers/chat_provider.dart';
 
@@ -59,6 +60,7 @@ class KitchenApp extends StatelessWidget {
         ChangeNotifierProvider(create: (_) => AuthProvider()),
         ChangeNotifierProvider(create: (_) => KitchenProvider()),
         ChangeNotifierProvider(create: (_) => MenuProvider()),
+        ChangeNotifierProvider(create: (_) => MenuItemImageProvider()),
         ChangeNotifierProvider(create: (_) => OrderProvider()),
         ChangeNotifierProvider(create: (_) => ChatProvider()),
       ],

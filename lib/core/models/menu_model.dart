@@ -1,3 +1,5 @@
+import 'menu_item_image_model.dart';
+
 class MenuItem {
   final int id;
   final int kitchenId;
@@ -16,6 +18,7 @@ class MenuItem {
   final int? spicyLevel;
   final double? rating;
   final List<MenuLabel>? labels;
+  final List<MenuItemImage>? images;
   final DateTime createdAt;
   final DateTime updatedAt;
 
@@ -40,6 +43,7 @@ class MenuItem {
     this.spicyLevel,
     this.rating,
     this.labels,
+    this.images,
     required this.createdAt,
     required this.updatedAt,
   });
@@ -65,6 +69,9 @@ class MenuItem {
       labels: json['labels'] != null
           ? (json['labels'] as List).map((e) => MenuLabel.fromJson(e)).toList()
           : null,
+      images: json['images'] != null
+          ? (json['images'] as List).map((e) => MenuItemImage.fromJson(e)).toList()
+          : null,
       createdAt: DateTime.parse(json['createdAt'] ?? DateTime.now().toIso8601String()),
       updatedAt: DateTime.parse(json['updatedAt'] ?? DateTime.now().toIso8601String()),
     );
@@ -89,6 +96,7 @@ class MenuItem {
       'spicyLevel': spicyLevel,
       'rating': rating,
       'labels': labels?.map((e) => e.toJson()).toList(),
+      'images': images?.map((e) => e.toJson()).toList(),
       'createdAt': createdAt.toIso8601String(),
       'updatedAt': updatedAt.toIso8601String(),
     };
@@ -154,6 +162,7 @@ class MenuItem {
     int? spicyLevel,
     double? rating,
     List<MenuLabel>? labels,
+    List<MenuItemImage>? images,
     DateTime? createdAt,
     DateTime? updatedAt,
   }) {
@@ -175,6 +184,7 @@ class MenuItem {
       spicyLevel: spicyLevel ?? this.spicyLevel,
       rating: rating ?? this.rating,
       labels: labels ?? this.labels,
+      images: images ?? this.images,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
     );

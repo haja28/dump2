@@ -221,21 +221,65 @@ class MenuProvider with ChangeNotifier {
       _error = null;
       notifyListeners();
 
+      debugPrint('Fetching menu items for kitchen: $kitchenId');
       final response = await ApiService.getKitchenMenu(kitchenId, page: page, size: size);
+      debugPrint('Menu response status: ${response.statusCode}');
+      debugPrint('Menu response data: ${response.data}');
 
-      if (response.statusCode == 200 && response.data['success'] == true) {
-        final data = response.data['data'];
-        if (data != null) {
-          _kitchenMenuItems = (data['content'] as List?)
-              ?.map((json) => MenuItem.fromJson(json))
-              .toList() ?? [];
+      if (response.statusCode == 200) {
+        // Handle different response structures
+        final responseData = response.data;
+
+        // Check if response has 'success' wrapper
+        if (responseData['success'] == true && responseData['data'] != null) {
+          final data = responseData['data'];
+          // Paginated response with 'content' array
+          if (data is Map && data['content'] != null) {
+            _kitchenMenuItems = (data['content'] as List)
+                .map((json) => MenuItem.fromJson(json))
+                .toList();
+          }
+          // Direct array response
+          else if (data is List) {
+            _kitchenMenuItems = data
+                .map((json) => MenuItem.fromJson(json))
+                .toList();
+          }
         }
+        // Direct data response without 'success' wrapper
+        else if (responseData['data'] != null) {
+          final data = responseData['data'];
+          if (data is Map && data['content'] != null) {
+            _kitchenMenuItems = (data['content'] as List)
+                .map((json) => MenuItem.fromJson(json))
+                .toList();
+          } else if (data is List) {
+            _kitchenMenuItems = data
+                .map((json) => MenuItem.fromJson(json))
+                .toList();
+          }
+        }
+        // Direct content response
+        else if (responseData['content'] != null) {
+          _kitchenMenuItems = (responseData['content'] as List)
+              .map((json) => MenuItem.fromJson(json))
+              .toList();
+        }
+        // Direct array at root
+        else if (responseData is List) {
+          _kitchenMenuItems = responseData
+              .map((json) => MenuItem.fromJson(json))
+              .toList();
+        }
+
+        debugPrint('Loaded ${_kitchenMenuItems.length} menu items');
       }
 
       _isLoading = false;
       notifyListeners();
-    } catch (e) {
+    } catch (e, stackTrace) {
       debugPrint('Error fetching kitchen menu items: $e');
+      debugPrint('Stack trace: $stackTrace');
       _error = 'Failed to load menu items';
       _isLoading = false;
       notifyListeners();

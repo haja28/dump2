@@ -239,6 +239,100 @@ class ApiService {
     );
   }
 
+  // ============ Menu Item Image Endpoints ============
+
+  /// Upload single image for menu item
+  static Future<Response> uploadMenuItemImage(
+    int menuItemId,
+    String filePath,
+    String fileName, {
+    String? altText,
+    bool isPrimary = false,
+  }) async {
+    final formData = FormData.fromMap({
+      'file': await MultipartFile.fromFile(filePath, filename: fileName),
+      if (altText != null) 'altText': altText,
+      'isPrimary': isPrimary,
+    });
+    return _dio.post(
+      '${AppConfig.menuItemsEndpoint}/$menuItemId/images',
+      data: formData,
+      options: Options(contentType: 'multipart/form-data'),
+    );
+  }
+
+  /// Upload multiple images for menu item
+  static Future<Response> uploadMenuItemImages(
+    int menuItemId,
+    List<String> filePaths,
+    List<String> fileNames, {
+    String? altText,
+  }) async {
+    final files = <MultipartFile>[];
+    for (int i = 0; i < filePaths.length; i++) {
+      files.add(await MultipartFile.fromFile(
+        filePaths[i],
+        filename: fileNames[i],
+      ));
+    }
+    final formData = FormData.fromMap({
+      'files': files,
+      if (altText != null) 'altText': altText,
+    });
+    return _dio.post(
+      '${AppConfig.menuItemsEndpoint}/$menuItemId/images/batch',
+      data: formData,
+      options: Options(contentType: 'multipart/form-data'),
+    );
+  }
+
+  /// Get all images for menu item
+  static Future<Response> getMenuItemImages(int menuItemId) {
+    return _dio.get('${AppConfig.menuItemsEndpoint}/$menuItemId/images');
+  }
+
+  /// Set image as primary
+  static Future<Response> setMenuItemImagePrimary(int menuItemId, int imageId) {
+    return _dio.patch(
+      '${AppConfig.menuItemsEndpoint}/$menuItemId/images/$imageId/primary',
+    );
+  }
+
+  /// Update image display order
+  static Future<Response> updateMenuItemImageOrder(int menuItemId, int imageId, int displayOrder) {
+    return _dio.patch(
+      '${AppConfig.menuItemsEndpoint}/$menuItemId/images/$imageId/order',
+      queryParameters: {'displayOrder': displayOrder},
+    );
+  }
+
+  /// Update image alt text
+  static Future<Response> updateMenuItemImageAltText(int menuItemId, int imageId, String altText) {
+    return _dio.patch(
+      '${AppConfig.menuItemsEndpoint}/$menuItemId/images/$imageId/alt-text',
+      queryParameters: {'altText': altText},
+    );
+  }
+
+  /// Deactivate image (soft delete)
+  static Future<Response> deactivateMenuItemImage(int menuItemId, int imageId) {
+    return _dio.patch(
+      '${AppConfig.menuItemsEndpoint}/$menuItemId/images/$imageId/deactivate',
+    );
+  }
+
+  /// Delete image permanently
+  static Future<Response> deleteMenuItemImage(int menuItemId, int imageId) {
+    return _dio.delete(
+      '${AppConfig.menuItemsEndpoint}/$menuItemId/images/$imageId',
+    );
+  }
+
+  /// Get image base URL for constructing full URLs
+  static String getImageBaseUrl() {
+    return AppConfig.gatewayUrl;
+  }
+
   // Order endpoints
   static Future<Response> createOrder(Map<String, dynamic> data) {
     return _dio.post(AppConfig.ordersEndpoint, data: data);

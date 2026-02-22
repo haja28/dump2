@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:go_router/go_router.dart';
+import 'package:cached_network_image/cached_network_image.dart';
 import '../../../core/config/theme_config.dart';
 import '../../../core/models/menu_model.dart';
+import '../../../core/services/api_service.dart';
 import '../../menu/providers/menu_provider.dart';
 import '../providers/kitchen_provider.dart';
 
@@ -14,17 +16,38 @@ class KitchenMenuScreen extends StatefulWidget {
 }
 
 class _KitchenMenuScreenState extends State<KitchenMenuScreen> {
+  bool _isInitialLoading = true;
+
   @override
   void initState() {
     super.initState();
-    _loadMenu();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _loadMenu();
+    });
   }
 
   Future<void> _loadMenu() async {
+    if (!mounted) return;
+
     final kitchenProvider = context.read<KitchenProvider>();
     final menuProvider = context.read<MenuProvider>();
+
+    // If myKitchen is null, try to fetch it first
+    if (kitchenProvider.myKitchen == null) {
+      await kitchenProvider.fetchMyKitchen();
+    }
+
+    // Now try to load menu items
     if (kitchenProvider.myKitchen != null) {
       await menuProvider.fetchKitchenMenuItems(kitchenProvider.myKitchen!.id);
+    } else {
+      debugPrint('KitchenMenuScreen: myKitchen is still null after fetch attempt');
+    }
+
+    if (mounted) {
+      setState(() {
+        _isInitialLoading = false;
+      });
     }
   }
 
@@ -40,11 +63,36 @@ class _KitchenMenuScreenState extends State<KitchenMenuScreen> {
           ),
         ],
       ),
-      body: Consumer<MenuProvider>(
-        builder: (context, menuProvider, _) {
-          if (menuProvider.isLoading) {
+      body: Consumer2<KitchenProvider, MenuProvider>(
+        builder: (context, kitchenProvider, menuProvider, _) {
+          // Show loading while initial load is happening
+          if (_isInitialLoading || menuProvider.isLoading) {
             return const Center(child: CircularProgressIndicator());
           }
+
+          // Show error if kitchen is not available
+          if (kitchenProvider.myKitchen == null) {
+            return Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(Icons.error_outline, size: 64, color: Colors.grey[400]),
+                  const SizedBox(height: 16),
+                  Text(
+                    'Unable to load kitchen',
+                    style: TextStyle(fontSize: 16, color: Colors.grey[600]),
+                  ),
+                  const SizedBox(height: 24),
+                  ElevatedButton.icon(
+                    onPressed: _loadMenu,
+                    icon: const Icon(Icons.refresh),
+                    label: const Text('Retry'),
+                  ),
+                ],
+              ),
+            );
+          }
+
           final menuItems = menuProvider.kitchenMenuItems;
           if (menuItems.isEmpty) {
             return _buildEmptyState(context);
@@ -103,20 +151,14 @@ class _KitchenMenuScreenState extends State<KitchenMenuScreen> {
               Row(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // Image
+                  // Image - prioritize primary image from images list
                   ClipRRect(
                     borderRadius: BorderRadius.circular(8),
                     child: Container(
                       width: 70,
                       height: 70,
                       color: Colors.grey[200],
-                      child: item.imagePath != null
-                          ? Image.network(
-                              item.imagePath!,
-                              fit: BoxFit.cover,
-                              errorBuilder: (_, __, ___) => const Icon(Icons.restaurant, size: 32),
-                            )
-                          : const Icon(Icons.restaurant, size: 32),
+                      child: _buildMenuItemImage(item),
                     ),
                   ),
                   const SizedBox(width: 12),
@@ -246,6 +288,47 @@ class _KitchenMenuScreenState extends State<KitchenMenuScreen> {
         ),
       ),
     );
+  }
+
+  /// Build the menu item image widget, prioritizing primary image from images list
+  Widget _buildMenuItemImage(MenuItem item) {
+    // First, try to find the primary image from the images list
+    String? imageUrl;
+
+    if (item.images != null && item.images!.isNotEmpty) {
+      // Find primary image or use first image
+      final primaryImage = item.images!.firstWhere(
+        (img) => img.isPrimary,
+        orElse: () => item.images!.first,
+      );
+
+      // Get the thumbnail URL for the primary image
+      final baseUrl = ApiService.getImageBaseUrl();
+      imageUrl = primaryImage.getThumbnailUrl(baseUrl);
+    }
+
+    // Fallback to imagePath if no images in the list
+    imageUrl ??= item.imagePath;
+
+    if (imageUrl != null && imageUrl.isNotEmpty) {
+      return CachedNetworkImage(
+        imageUrl: imageUrl,
+        fit: BoxFit.cover,
+        placeholder: (context, url) => Center(
+          child: SizedBox(
+            width: 20,
+            height: 20,
+            child: CircularProgressIndicator(
+              strokeWidth: 2,
+              color: ThemeConfig.primaryColor,
+            ),
+          ),
+        ),
+        errorWidget: (context, url, error) => const Icon(Icons.restaurant, size: 32),
+      );
+    }
+
+    return const Icon(Icons.restaurant, size: 32);
   }
 
   Future<void> _showQuantityDialog(MenuItem item, MenuProvider menuProvider) async {

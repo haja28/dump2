@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
@@ -5,6 +6,8 @@ import 'package:go_router/go_router.dart';
 import '../../../core/config/theme_config.dart';
 import '../../../core/models/menu_model.dart';
 import '../../menu/providers/menu_provider.dart';
+import '../../menu/providers/menu_item_image_provider.dart';
+import '../../menu/widgets/menu_item_image_gallery.dart';
 import '../providers/kitchen_provider.dart';
 
 class MenuItemFormScreen extends StatefulWidget {
@@ -23,7 +26,6 @@ class _MenuItemFormScreenState extends State<MenuItemFormScreen> {
   final _ingredientsController = TextEditingController();
   final _allergyIndicationController = TextEditingController();
   final _costController = TextEditingController();
-  final _imagePathController = TextEditingController();
   final _availableTimingController = TextEditingController();
   final _preparationTimeController = TextEditingController();
   final _quantityController = TextEditingController();
@@ -40,22 +42,46 @@ class _MenuItemFormScreenState extends State<MenuItemFormScreen> {
   @override
   void initState() {
     super.initState();
-    _initializeForm();
+    // Defer initialization to after the build is complete
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _initializeForm();
+    });
   }
 
   Future<void> _initializeForm() async {
+    if (!mounted) return;
+
     final menuProvider = context.read<MenuProvider>();
+    final imageProvider = context.read<MenuItemImageProvider>();
+
+    // Clear any previous state (safe now since we're after build)
+    imageProvider.clear();
 
     // Fetch labels
     await menuProvider.fetchLabels();
 
-    // If editing, load existing item
+    // If editing, load existing item and its images
     if (isEditing) {
-      setState(() => _isLoading = true);
+      if (mounted) {
+        setState(() => _isLoading = true);
+      }
+
+      // Load item details
       final item = await menuProvider.getMenuItemById(widget.itemId!);
       if (item != null && mounted) {
         _populateForm(item);
+
+        // Check if images are embedded in the menu item response
+        if (item.images != null && item.images!.isNotEmpty) {
+          debugPrint('Using ${item.images!.length} embedded images from menu item');
+          imageProvider.setImages(item.images!);
+        } else {
+          // Images not embedded, fetch them separately
+          debugPrint('Fetching images separately for menu item ${widget.itemId}');
+          await imageProvider.fetchImages(widget.itemId!);
+        }
       }
+
       if (mounted) {
         setState(() => _isLoading = false);
       }
@@ -72,7 +98,6 @@ class _MenuItemFormScreenState extends State<MenuItemFormScreen> {
     _ingredientsController.text = item.ingredients ?? '';
     _allergyIndicationController.text = item.allergyIndication ?? '';
     _costController.text = item.cost.toStringAsFixed(2);
-    _imagePathController.text = item.imagePath ?? '';
     _availableTimingController.text = item.availableTiming ?? '';
     _preparationTimeController.text = item.preparationTimeMinutes.toString();
     _quantityController.text = (item.quantityAvailable ?? 0).toString();
@@ -89,7 +114,6 @@ class _MenuItemFormScreenState extends State<MenuItemFormScreen> {
     _ingredientsController.dispose();
     _allergyIndicationController.dispose();
     _costController.dispose();
-    _imagePathController.dispose();
     _availableTimingController.dispose();
     _preparationTimeController.dispose();
     _quantityController.dispose();
@@ -102,6 +126,7 @@ class _MenuItemFormScreenState extends State<MenuItemFormScreen> {
     setState(() => _isLoading = true);
 
     final menuProvider = context.read<MenuProvider>();
+    final imageProvider = context.read<MenuItemImageProvider>();
     final kitchenProvider = context.read<KitchenProvider>();
     final kitchenId = kitchenProvider.myKitchen?.id;
 
@@ -117,9 +142,6 @@ class _MenuItemFormScreenState extends State<MenuItemFormScreen> {
           ? _allergyIndicationController.text.trim()
           : null,
       'cost': double.parse(_costController.text),
-      'imagePath': _imagePathController.text.trim().isNotEmpty
-          ? _imagePathController.text.trim()
-          : null,
       'availableTiming': _availableTimingController.text.trim().isNotEmpty
           ? _availableTimingController.text.trim()
           : null,
@@ -132,10 +154,40 @@ class _MenuItemFormScreenState extends State<MenuItemFormScreen> {
     };
 
     bool success;
+    int? savedItemId;
+
     if (isEditing) {
       success = await menuProvider.updateMenuItem(widget.itemId!, data);
+      savedItemId = widget.itemId;
     } else {
       success = await menuProvider.addMenuItem(data, kitchenId: kitchenId);
+      // Get the newly created item's ID
+      if (success && menuProvider.kitchenMenuItems.isNotEmpty) {
+        savedItemId = menuProvider.kitchenMenuItems.last.id;
+      }
+    }
+
+    // Upload pending images if menu item was saved successfully
+    if (success && savedItemId != null && imageProvider.pendingImages.isNotEmpty) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Uploading images...'),
+            duration: Duration(seconds: 1),
+          ),
+        );
+      }
+
+      final uploadedImages = await imageProvider.uploadPendingImages(savedItemId);
+
+      if (uploadedImages.isEmpty && imageProvider.error != null && mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Some images failed to upload: ${imageProvider.error}'),
+            backgroundColor: Colors.orange,
+          ),
+        );
+      }
     }
 
     setState(() => _isLoading = false);
@@ -306,15 +358,10 @@ class _MenuItemFormScreenState extends State<MenuItemFormScreen> {
                   ),
                   const SizedBox(height: 16),
 
-                  // Image Path
-                  TextFormField(
-                    controller: _imagePathController,
-                    decoration: const InputDecoration(
-                      labelText: 'Image URL',
-                      hintText: 'Enter image URL',
-                      prefixIcon: Icon(Icons.image),
-                    ),
-                    maxLength: 255,
+                  // Images Section
+                  MenuItemImageGallery(
+                    menuItemId: widget.itemId,
+                    readOnly: false,
                   ),
                   const SizedBox(height: 16),
 
