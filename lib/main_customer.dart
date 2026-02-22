@@ -1,12 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:flutter/scheduler.dart';
 import 'package:provider/provider.dart';
 import 'package:hive_flutter/hive_flutter.dart';
-import 'core/config/app_config.dart';
 import 'core/config/app_type.dart';
 import 'core/config/theme_config.dart';
-import 'core/routes/app_router.dart';
+import 'core/routes/customer_router.dart';
 import 'core/services/storage_service.dart';
 import 'core/services/api_service.dart';
 import 'features/auth/providers/auth_provider.dart';
@@ -21,17 +19,17 @@ import 'features/chat/providers/chat_provider.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  
-  // Default app type (can be changed for different build flavors)
+
+  // Set app type to Customer
   AppTypeConfig.setAppType(AppType.customer);
 
   // Initialize Hive for local storage
   await Hive.initFlutter();
-  
+
   // Initialize services
   await StorageService.init();
   await ApiService.init();
-  
+
   // Set system UI overlay style
   SystemChrome.setSystemUIOverlayStyle(
     const SystemUiOverlayStyle(
@@ -41,21 +39,18 @@ void main() async {
       systemNavigationBarIconBrightness: Brightness.dark,
     ),
   );
-  
+
   // Lock orientation to portrait
   await SystemChrome.setPreferredOrientations([
     DeviceOrientation.portraitUp,
     DeviceOrientation.portraitDown,
   ]);
 
-  // Optimize frame scheduling to prevent buffer queue issues
-  SchedulerBinding.instance.scheduleForcedFrame();
-
-  runApp(const MakanForYouApp());
+  runApp(const CustomerApp());
 }
 
-class MakanForYouApp extends StatelessWidget {
-  const MakanForYouApp({super.key});
+class CustomerApp extends StatelessWidget {
+  const CustomerApp({super.key});
 
   @override
   Widget build(BuildContext context) {
@@ -72,13 +67,14 @@ class MakanForYouApp extends StatelessWidget {
         ChangeNotifierProvider(create: (_) => ChatProvider()),
       ],
       child: MaterialApp.router(
-        title: AppConfig.appName,
+        title: AppTypeConfig.appName,
         debugShowCheckedModeBanner: false,
         theme: ThemeConfig.lightTheme,
         darkTheme: ThemeConfig.darkTheme,
         themeMode: ThemeMode.light,
-        routerConfig: AppRouter.router,
+        routerConfig: CustomerRouter.router,
       ),
     );
   }
 }
+

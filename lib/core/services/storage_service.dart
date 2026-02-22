@@ -34,6 +34,7 @@ class StorageService {
     await _prefs.remove(AppConfig.userIdKey);
     await _prefs.remove(AppConfig.userDataKey);
     await _prefs.remove(AppConfig.userRoleKey);
+    await _prefs.remove(AppConfig.kitchenIdKey);
   }
   
   // User Data
@@ -44,7 +45,20 @@ class StorageService {
   static int? getUserId() {
     return _prefs.getInt(AppConfig.userIdKey);
   }
-  
+
+  // Kitchen Data (for kitchen owners)
+  static Future<void> saveKitchenId(int kitchenId) async {
+    await _prefs.setInt(AppConfig.kitchenIdKey, kitchenId);
+  }
+
+  static int? getKitchenId() {
+    return _prefs.getInt(AppConfig.kitchenIdKey);
+  }
+
+  static Future<void> clearKitchenId() async {
+    await _prefs.remove(AppConfig.kitchenIdKey);
+  }
+
   static Future<void> saveUserData(Map<String, dynamic> userData) async {
     await _prefs.setString(AppConfig.userDataKey, jsonEncode(userData));
   }

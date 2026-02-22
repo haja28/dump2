@@ -3,45 +3,40 @@ import 'package:flutter/services.dart';
 import 'package:flutter/scheduler.dart';
 import 'package:provider/provider.dart';
 import 'package:hive_flutter/hive_flutter.dart';
-import 'core/config/app_config.dart';
 import 'core/config/app_type.dart';
 import 'core/config/theme_config.dart';
-import 'core/routes/app_router.dart';
+import 'core/routes/kitchen_router.dart';
 import 'core/services/storage_service.dart';
 import 'core/services/api_service.dart';
 import 'features/auth/providers/auth_provider.dart';
 import 'features/kitchen/providers/kitchen_provider.dart';
 import 'features/menu/providers/menu_provider.dart';
 import 'features/order/providers/order_provider.dart';
-import 'features/payment/providers/payment_provider.dart';
-import 'features/delivery/providers/delivery_provider.dart';
-import 'features/cart/providers/cart_provider.dart';
-import 'features/cart/providers/coupon_provider.dart';
 import 'features/chat/providers/chat_provider.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  
-  // Default app type (can be changed for different build flavors)
-  AppTypeConfig.setAppType(AppType.customer);
+
+  // Set app type to Kitchen
+  AppTypeConfig.setAppType(AppType.kitchen);
 
   // Initialize Hive for local storage
   await Hive.initFlutter();
-  
+
   // Initialize services
   await StorageService.init();
   await ApiService.init();
-  
-  // Set system UI overlay style
+
+  // Set system UI overlay style - Kitchen app uses darker theme
   SystemChrome.setSystemUIOverlayStyle(
     const SystemUiOverlayStyle(
       statusBarColor: Colors.transparent,
-      statusBarIconBrightness: Brightness.dark,
-      systemNavigationBarColor: Colors.white,
-      systemNavigationBarIconBrightness: Brightness.dark,
+      statusBarIconBrightness: Brightness.light,
+      systemNavigationBarColor: Color(0xFF1A1A2E),
+      systemNavigationBarIconBrightness: Brightness.light,
     ),
   );
-  
+
   // Lock orientation to portrait
   await SystemChrome.setPreferredOrientations([
     DeviceOrientation.portraitUp,
@@ -51,11 +46,11 @@ void main() async {
   // Optimize frame scheduling to prevent buffer queue issues
   SchedulerBinding.instance.scheduleForcedFrame();
 
-  runApp(const MakanForYouApp());
+  runApp(const KitchenApp());
 }
 
-class MakanForYouApp extends StatelessWidget {
-  const MakanForYouApp({super.key});
+class KitchenApp extends StatelessWidget {
+  const KitchenApp({super.key});
 
   @override
   Widget build(BuildContext context) {
@@ -65,20 +60,17 @@ class MakanForYouApp extends StatelessWidget {
         ChangeNotifierProvider(create: (_) => KitchenProvider()),
         ChangeNotifierProvider(create: (_) => MenuProvider()),
         ChangeNotifierProvider(create: (_) => OrderProvider()),
-        ChangeNotifierProvider(create: (_) => PaymentProvider()),
-        ChangeNotifierProvider(create: (_) => DeliveryProvider()),
-        ChangeNotifierProvider(create: (_) => CartProvider()),
-        ChangeNotifierProvider(create: (_) => CouponProvider()),
         ChangeNotifierProvider(create: (_) => ChatProvider()),
       ],
       child: MaterialApp.router(
-        title: AppConfig.appName,
+        title: AppTypeConfig.appName,
         debugShowCheckedModeBanner: false,
-        theme: ThemeConfig.lightTheme,
-        darkTheme: ThemeConfig.darkTheme,
+        theme: ThemeConfig.kitchenLightTheme,
+        darkTheme: ThemeConfig.kitchenDarkTheme,
         themeMode: ThemeMode.light,
-        routerConfig: AppRouter.router,
+        routerConfig: KitchenRouter.router,
       ),
     );
   }
 }
+

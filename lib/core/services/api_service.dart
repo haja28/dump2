@@ -99,12 +99,40 @@ class ApiService {
   static Future<Response> approveKitchen(int id) {
     return _dio.patch('${AppConfig.kitchensEndpoint}/$id/approve');
   }
-  
-  // Menu endpoints
-  static Future<Response> createMenuItem(Map<String, dynamic> data) {
-    return _dio.post(AppConfig.menuItemsEndpoint, data: data);
+
+  static Future<Response> getMyKitchen() {
+    return _dio.get('${AppConfig.kitchensEndpoint}/my-kitchen');
   }
-  
+
+  static Future<Response> updateKitchenStatus(int id, bool isActive) {
+    return _dio.patch(
+      '${AppConfig.kitchensEndpoint}/$id/status',
+      queryParameters: {'active': isActive ? 1 : 0},
+    );
+  }
+
+  static Future<Response> updateKitchen(int id, Map<String, dynamic> data) {
+    return _dio.put('${AppConfig.kitchensEndpoint}/$id', data: data);
+  }
+
+  // Menu endpoints
+
+  /// Create a new menu item (Kitchen Owner only)
+  /// Requires X-Kitchen-Id header
+  static Future<Response> createMenuItem(Map<String, dynamic> data, {int? kitchenId}) {
+    return _dio.post(
+      AppConfig.menuItemsEndpoint,
+      data: data,
+      options: kitchenId != null ? Options(headers: {'X-Kitchen-Id': kitchenId}) : null,
+    );
+  }
+
+  /// Get menu item by ID
+  static Future<Response> getMenuItemById(int itemId) {
+    return _dio.get('${AppConfig.menuItemsEndpoint}/$itemId');
+  }
+
+  /// Search menu items with filters
   static Future<Response> searchMenuItems({
     String? query,
     int? kitchenId,
@@ -138,17 +166,79 @@ class ApiService {
     );
   }
   
-  static Future<Response> getKitchenMenu(int kitchenId, {int page = 0}) {
+  /// Get kitchen menu with pagination
+  static Future<Response> getKitchenMenu(int kitchenId, {int page = 0, int size = 10}) {
     return _dio.get(
       '${AppConfig.menuItemsEndpoint}/kitchen/$kitchenId',
-      queryParameters: {'page': page},
+      queryParameters: {'page': page, 'size': size},
     );
   }
   
+  /// Get all menu labels
   static Future<Response> getMenuLabels() {
     return _dio.get(AppConfig.menuLabelsEndpoint);
   }
-  
+
+  /// Get menu label by ID
+  static Future<Response> getMenuLabelById(int labelId) {
+    return _dio.get('${AppConfig.menuLabelsEndpoint}/$labelId');
+  }
+
+  /// Create a new menu label (Admin only)
+  static Future<Response> createMenuLabel(String name, {String? description}) {
+    return _dio.post(
+      AppConfig.menuLabelsEndpoint,
+      queryParameters: {
+        'name': name,
+        if (description != null) 'description': description,
+      },
+    );
+  }
+
+  /// Update a menu label (Admin only)
+  static Future<Response> updateMenuLabel(int labelId, String name, {String? description}) {
+    return _dio.put(
+      '${AppConfig.menuLabelsEndpoint}/$labelId',
+      queryParameters: {
+        'name': name,
+        if (description != null) 'description': description,
+      },
+    );
+  }
+
+  /// Deactivate a menu label (Admin only)
+  static Future<Response> deactivateMenuLabel(int labelId) {
+    return _dio.patch('${AppConfig.menuLabelsEndpoint}/$labelId/deactivate');
+  }
+
+  /// Update menu item
+  static Future<Response> updateMenuItem(int id, Map<String, dynamic> data) {
+    return _dio.put('${AppConfig.menuItemsEndpoint}/$id', data: data);
+  }
+
+  /// Deactivate menu item (soft delete)
+  static Future<Response> deactivateMenuItem(int id) {
+    return _dio.patch('${AppConfig.menuItemsEndpoint}/$id/deactivate');
+  }
+
+  /// Delete menu item (hard delete - if available)
+  static Future<Response> deleteMenuItem(int id) {
+    return _dio.delete('${AppConfig.menuItemsEndpoint}/$id');
+  }
+
+  /// Get menu item availability
+  static Future<Response> getMenuItemAvailability(int id) {
+    return _dio.get('${AppConfig.menuItemsEndpoint}/$id/availability');
+  }
+
+  /// Update menu item availability (quantity)
+  static Future<Response> updateMenuItemAvailability(int id, int quantityAvailable) {
+    return _dio.patch(
+      '${AppConfig.menuItemsEndpoint}/$id/availability',
+      queryParameters: {'quantityAvailable': quantityAvailable},
+    );
+  }
+
   // Order endpoints
   static Future<Response> createOrder(Map<String, dynamic> data) {
     return _dio.post(AppConfig.ordersEndpoint, data: data);
@@ -170,7 +260,15 @@ class ApiService {
       queryParameters: {'page': page},
     );
   }
-  
+
+  // Get orders for the currently logged in kitchen owner
+  static Future<Response> getMyKitchenOrders({int page = 0}) {
+    return _dio.get(
+      '${AppConfig.ordersEndpoint}/kitchen/my-orders',
+      queryParameters: {'page': page},
+    );
+  }
+
   static Future<Response> getPendingOrders(int kitchenId) {
     return _dio.get('${AppConfig.ordersEndpoint}/kitchen/$kitchenId/pending');
   }
@@ -374,7 +472,8 @@ class _AuthInterceptor extends Interceptor {
   ) async {
     final token = await StorageService.getAccessToken();
     final userId = await StorageService.getUserId();
-    
+    final kitchenId = StorageService.getKitchenId();
+
     if (token != null) {
       options.headers['Authorization'] = 'Bearer $token';
     }
@@ -382,42 +481,87 @@ class _AuthInterceptor extends Interceptor {
     if (userId != null) {
       options.headers['X-User-Id'] = userId;
     }
-    
+
+    if (kitchenId != null) {
+      options.headers['X-Kitchen-Id'] = kitchenId;
+    }
+
     handler.next(options);
   }
 }
 
-// Error Interceptor
+// Error Interceptor with token refresh lock to prevent race conditions
 class _ErrorInterceptor extends Interceptor {
+  // Lock to prevent multiple simultaneous refresh attempts
+  static bool _isRefreshing = false;
+  // Completer to allow waiting requests to get the new token
+  static Future<String?>? _refreshFuture;
+
   @override
   void onError(DioException err, ErrorInterceptorHandler handler) async {
     if (err.response?.statusCode == 401) {
+      // Skip refresh logic for refresh endpoint itself to avoid infinite loop
+      if (err.requestOptions.path.contains('/auth/refresh')) {
+        return handler.next(err);
+      }
+
       // Token expired, try to refresh
       final refreshToken = await StorageService.getRefreshToken();
       
       if (refreshToken != null) {
         try {
-          final response = await ApiService.refreshToken(refreshToken);
-          
-          if (response.statusCode == 200) {
-            final data = response.data['data'];
-            await StorageService.saveAccessToken(data['accessToken']);
-            await StorageService.saveRefreshToken(data['refreshToken']);
-            
-            // Retry the original request
+          String? newAccessToken;
+
+          // Check if a refresh is already in progress
+          if (_isRefreshing) {
+            // Wait for the existing refresh to complete
+            newAccessToken = await _refreshFuture;
+          } else {
+            // Start a new refresh
+            _isRefreshing = true;
+            _refreshFuture = _performTokenRefresh(refreshToken);
+            newAccessToken = await _refreshFuture;
+            _isRefreshing = false;
+            _refreshFuture = null;
+          }
+
+          if (newAccessToken != null) {
+            // Retry the original request with new token
             final opts = err.requestOptions;
-            opts.headers['Authorization'] = 'Bearer ${data['accessToken']}';
-            
+            opts.headers['Authorization'] = 'Bearer $newAccessToken';
+
             final retryResponse = await ApiService.dio.fetch(opts);
             return handler.resolve(retryResponse);
           }
         } catch (e) {
-          // Refresh failed, logout user
+          // Refresh failed, reset state
+          _isRefreshing = false;
+          _refreshFuture = null;
+          // Logout user
           await StorageService.clearAuth();
         }
       }
     }
-    
+
     handler.next(err);
+  }
+
+  // Performs the actual token refresh and returns the new access token
+  static Future<String?> _performTokenRefresh(String refreshToken) async {
+    try {
+      final response = await ApiService.refreshToken(refreshToken);
+
+      if (response.statusCode == 200) {
+        final data = response.data['data'];
+        final newAccessToken = data['accessToken'] as String;
+        await StorageService.saveAccessToken(newAccessToken);
+        await StorageService.saveRefreshToken(data['refreshToken']);
+        return newAccessToken;
+      }
+    } catch (e) {
+      // Refresh failed, logout user
+      await StorageService.clearAuth();
+    }
+    return null;
   }
 }

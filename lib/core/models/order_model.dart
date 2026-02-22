@@ -87,9 +87,14 @@ class Order {
   }
 
   bool get canCancel => status == 'PENDING' || status == 'CONFIRMED';
-  bool get isActive => !['DELIVERED', 'CANCELLED'].contains(status);
-  bool get isCompleted => status == 'DELIVERED';
+  bool get isActive => !['DELIVERED', 'CANCELLED', 'COMPLETED'].contains(status);
+  bool get isCompleted => status == 'DELIVERED' || status == 'COMPLETED';
   bool get isCancelled => status == 'CANCELLED';
+
+  // Convenience getters
+  double get total => totalAmount;
+  int get itemCount => items.fold(0, (sum, item) => sum + item.quantity);
+  String? get notes => specialInstructions;
 }
 
 class OrderItem {
@@ -106,6 +111,9 @@ class OrderItem {
     required this.price,
     this.totalPrice,
   });
+
+  // Convenience getter
+  String get name => itemName;
 
   factory OrderItem.fromJson(Map<String, dynamic> json) {
     return OrderItem(

@@ -4,20 +4,20 @@ class AppConfig {
   static const String appVersion = '1.0.0';
   
   // API Configuration
-  static const String baseUrl = 'http://192.168.1.8:8080';
+  static const String baseUrl = 'http://192.168.1.6:8080';
   static const String apiVersion = 'v1';
 
   static const String apiBasePath = '/api/$apiVersion';
   
   // Service URLs
-  static const String authServiceUrl = 'http://192.168.1.8:8081';
-  static const String kitchenServiceUrl = 'http://192.168.1.8:8082';
-  static const String menuServiceUrl = 'http://192.168.1.8:8083';
-  static const String orderServiceUrl = 'http://192.168.1.8:8084';
-  static const String paymentServiceUrl = 'http://192.168.1.8:8085';
-  static const String deliveryServiceUrl = 'http://192.168.1.8:8086';
-  static const String chatServiceUrl = 'http://192.168.1.8:8086';
-  static const String chatWsUrl = 'http://192.168.1.8:8086/ws/chat';
+  static const String authServiceUrl = 'http://192.168.1.6:8081';
+  static const String kitchenServiceUrl = 'http://192.168.1.6:8082';
+  static const String menuServiceUrl = 'http://192.168.1.6:8083';
+  static const String orderServiceUrl = 'http://192.168.1.6:8084';
+  static const String paymentServiceUrl = 'http://192.168.1.6:8085';
+  static const String deliveryServiceUrl = 'http://192.168.1.6:8086';
+  static const String chatServiceUrl = 'http://192.168.1.6:8086';
+  static const String chatWsUrl = 'http://192.168.1.6:8086/ws/chat';
 
   // Gateway URL (All requests go through this)
   static const String gatewayUrl = baseUrl + apiBasePath;
@@ -41,6 +41,7 @@ class AppConfig {
   static const String userIdKey = 'user_id';
   static const String userDataKey = 'user_data';
   static const String userRoleKey = 'user_role';
+  static const String kitchenIdKey = 'kitchen_id';
   static const String cartDataKey = 'cart_data';
   static const String recentSearchesKey = 'recent_searches';
   static const String favoriteKitchensKey = 'favorite_kitchens';

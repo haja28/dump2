@@ -2,6 +2,7 @@ import 'package:flutter/foundation.dart';
 import 'package:dio/dio.dart';
 import '../../../core/models/kitchen_model.dart';
 import '../../../core/services/api_service.dart';
+import '../../../core/services/storage_service.dart';
 
 class KitchenProvider with ChangeNotifier {
   List<Kitchen> _kitchens = [];
@@ -121,5 +122,84 @@ class KitchenProvider with ChangeNotifier {
   void clearError() {
     _error = null;
     notifyListeners();
+  }
+
+  // Kitchen owner's own kitchen
+  Kitchen? _myKitchen;
+  Kitchen? get myKitchen => _myKitchen;
+
+  Future<void> fetchMyKitchen() async {
+    try {
+      _isLoading = true;
+      _error = null;
+      notifyListeners();
+
+      final response = await ApiService.getMyKitchen();
+
+      if (response.statusCode == 200) {
+        _myKitchen = Kitchen.fromJson(response.data['data']);
+        // Save kitchen ID for API header usage
+        await StorageService.saveKitchenId(_myKitchen!.id);
+      }
+
+      _isLoading = false;
+      notifyListeners();
+    } on DioException catch (e) {
+      _error = e.response?.data['message'] ?? 'Failed to load kitchen';
+      _isLoading = false;
+      notifyListeners();
+    }
+  }
+
+  Future<bool> toggleKitchenStatus(bool isActive) async {
+    try {
+      if (_myKitchen == null) return false;
+
+      final response = await ApiService.updateKitchenStatus(_myKitchen!.id, isActive);
+
+      if (response.statusCode == 200 && response.data['success'] == true) {
+        // Parse updated kitchen from response data
+        final kitchenData = response.data['data'];
+        if (kitchenData != null) {
+          _myKitchen = Kitchen.fromJson(kitchenData);
+        } else {
+          // Fallback: update locally if data is not in response
+          _myKitchen = _myKitchen!.copyWith(isOpen: isActive);
+        }
+        notifyListeners();
+        return true;
+      }
+      return false;
+    } catch (e) {
+      debugPrint('Error toggling kitchen status: $e');
+      return false;
+    }
+  }
+
+  Future<bool> updateKitchenProfile(Map<String, dynamic> data) async {
+    try {
+      if (_myKitchen == null) return false;
+
+      _isLoading = true;
+      notifyListeners();
+
+      final response = await ApiService.updateKitchen(_myKitchen!.id, data);
+
+      if (response.statusCode == 200) {
+        _myKitchen = Kitchen.fromJson(response.data['data']);
+        _isLoading = false;
+        notifyListeners();
+        return true;
+      }
+
+      _isLoading = false;
+      notifyListeners();
+      return false;
+    } on DioException catch (e) {
+      _error = e.response?.data['message'] ?? 'Failed to update kitchen';
+      _isLoading = false;
+      notifyListeners();
+      return false;
+    }
   }
 }
