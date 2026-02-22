@@ -348,4 +348,54 @@ class ThemeConfig {
       ),
     );
   }
+
+  // Kitchen App Light Theme (with different accent colors)
+  static ThemeData get kitchenLightTheme {
+    return lightTheme.copyWith(
+      colorScheme: const ColorScheme.light(
+        primary: Color(0xFF2E7D32), // Green for kitchen
+        secondary: Color(0xFF4CAF50),
+        tertiary: accentColor,
+        surface: surfaceColor,
+        error: errorColor,
+        onPrimary: Colors.white,
+        onSecondary: Colors.white,
+        onSurface: textPrimaryColor,
+        onError: Colors.white,
+      ),
+      appBarTheme: AppBarTheme(
+        backgroundColor: const Color(0xFF2E7D32),
+        foregroundColor: Colors.white,
+        elevation: 0,
+        centerTitle: true,
+        titleTextStyle: GoogleFonts.poppins(
+          fontSize: fontSizeXL,
+          fontWeight: FontWeight.w600,
+          color: Colors.white,
+        ),
+      ),
+      floatingActionButtonTheme: const FloatingActionButtonThemeData(
+        backgroundColor: Color(0xFF2E7D32),
+        foregroundColor: Colors.white,
+        elevation: elevationM,
+      ),
+    );
+  }
+
+  // Kitchen App Dark Theme
+  static ThemeData get kitchenDarkTheme {
+    return darkTheme.copyWith(
+      colorScheme: const ColorScheme.dark(
+        primary: Color(0xFF4CAF50),
+        secondary: Color(0xFF81C784),
+        tertiary: accentColor,
+        surface: Color(0xFF1E1E1E),
+        error: errorColor,
+        onPrimary: Colors.white,
+        onSecondary: Colors.white,
+        onSurface: Colors.white,
+        onError: Colors.white,
+      ),
+    );
+  }
 }

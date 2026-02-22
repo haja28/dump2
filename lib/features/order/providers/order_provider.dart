@@ -108,4 +108,104 @@ class OrderProvider with ChangeNotifier {
     _error = null;
     notifyListeners();
   }
+
+  // Kitchen-specific order management
+  List<Order> _kitchenOrders = [];
+  List<Order> get kitchenOrders => _kitchenOrders;
+
+  // Filtered lists for kitchen dashboard
+  List<Order> get newOrders => _kitchenOrders
+      .where((o) => o.status.toUpperCase() == 'PENDING')
+      .toList();
+  List<Order> get preparingOrders => _kitchenOrders
+      .where((o) => ['CONFIRMED', 'PREPARING'].contains(o.status.toUpperCase()))
+      .toList();
+  List<Order> get readyOrders => _kitchenOrders
+      .where((o) => o.status.toUpperCase() == 'READY')
+      .toList();
+
+  // Dashboard statistics
+  int get newOrdersCount => newOrders.length;
+  int get inProgressCount => preparingOrders.length;
+  int get completedTodayCount {
+    final today = DateTime.now();
+    return _kitchenOrders.where((o) {
+      return o.status.toUpperCase() == 'COMPLETED' &&
+          o.createdAt.year == today.year &&
+          o.createdAt.month == today.month &&
+          o.createdAt.day == today.day;
+    }).length;
+  }
+
+  double get todayRevenue {
+    final today = DateTime.now();
+    return _kitchenOrders
+        .where((o) {
+          return o.status.toUpperCase() == 'COMPLETED' &&
+              o.createdAt.year == today.year &&
+              o.createdAt.month == today.month &&
+              o.createdAt.day == today.day;
+        })
+        .fold(0.0, (sum, o) => sum + o.total);
+  }
+
+  Future<void> fetchKitchenOrders({bool refresh = false}) async {
+    try {
+      _isLoading = true;
+      _error = null;
+      notifyListeners();
+
+      final response = await ApiService.getMyKitchenOrders();
+
+      if (response.statusCode == 200) {
+        final data = response.data['data'];
+        _kitchenOrders = (data['content'] as List)
+            .map((json) => Order.fromJson(json))
+            .toList();
+      }
+
+      _isLoading = false;
+      notifyListeners();
+    } on DioException catch (e) {
+      _error = e.response?.data['message'] ?? 'Failed to load orders';
+      _isLoading = false;
+      notifyListeners();
+    }
+  }
+
+  Future<bool> acceptOrder(int orderId) async {
+    return _updateOrderStatus(orderId, 'CONFIRMED');
+  }
+
+  Future<bool> rejectOrder(int orderId) async {
+    return _updateOrderStatus(orderId, 'CANCELLED');
+  }
+
+  Future<bool> startPreparing(int orderId) async {
+    return _updateOrderStatus(orderId, 'PREPARING');
+  }
+
+  Future<bool> markReady(int orderId) async {
+    return _updateOrderStatus(orderId, 'READY');
+  }
+
+  Future<bool> completeOrder(int orderId) async {
+    return _updateOrderStatus(orderId, 'COMPLETED');
+  }
+
+  Future<bool> _updateOrderStatus(int orderId, String status) async {
+    try {
+      final response = await ApiService.updateOrderStatus(orderId, status);
+
+      if (response.statusCode == 200) {
+        await fetchKitchenOrders(refresh: true);
+        return true;
+      }
+      return false;
+    } on DioException catch (e) {
+      _error = e.response?.data['message'] ?? 'Failed to update order';
+      notifyListeners();
+      return false;
+    }
+  }
 }

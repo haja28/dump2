@@ -57,6 +57,8 @@ dependencies:
   # Image Handling
   image_picker: ^1.0.7
   flutter_image_compress: ^2.1.0
+  path: ^1.9.0
+  path_provider: ^2.1.2
 
   # Location & Maps
   geolocator: ^11.0.0

@@ -8,6 +8,7 @@ class Kitchen {
   final String? cuisineTypes;
   final String? description;
   final bool isApproved;
+  final bool isOpen;
   final double? rating;
   final int? totalOrders;
   final DateTime createdAt;
@@ -23,11 +24,15 @@ class Kitchen {
     this.cuisineTypes,
     this.description,
     required this.isApproved,
+    this.isOpen = true,
     this.rating,
     this.totalOrders,
     required this.createdAt,
     required this.updatedAt,
   });
+
+  // Convenience getter for name
+  String get name => kitchenName;
 
   factory Kitchen.fromJson(Map<String, dynamic> json) {
     return Kitchen(
@@ -40,10 +45,45 @@ class Kitchen {
       cuisineTypes: json['cuisineTypes'],
       description: json['description'],
       isApproved: json['isApproved'] ?? json['approved'] ?? false,
+      isOpen: json['isActive'] ?? json['isOpen'] ?? true,
       rating: json['rating']?.toDouble(),
       totalOrders: json['totalOrders'],
       createdAt: DateTime.parse(json['createdAt'] ?? DateTime.now().toIso8601String()),
       updatedAt: DateTime.parse(json['updatedAt'] ?? DateTime.now().toIso8601String()),
+    );
+  }
+
+  Kitchen copyWith({
+    int? id,
+    String? kitchenName,
+    String? address,
+    String? city,
+    String? ownerContact,
+    String? ownerEmail,
+    String? cuisineTypes,
+    String? description,
+    bool? isApproved,
+    bool? isOpen,
+    double? rating,
+    int? totalOrders,
+    DateTime? createdAt,
+    DateTime? updatedAt,
+  }) {
+    return Kitchen(
+      id: id ?? this.id,
+      kitchenName: kitchenName ?? this.kitchenName,
+      address: address ?? this.address,
+      city: city ?? this.city,
+      ownerContact: ownerContact ?? this.ownerContact,
+      ownerEmail: ownerEmail ?? this.ownerEmail,
+      cuisineTypes: cuisineTypes ?? this.cuisineTypes,
+      description: description ?? this.description,
+      isApproved: isApproved ?? this.isApproved,
+      isOpen: isOpen ?? this.isOpen,
+      rating: rating ?? this.rating,
+      totalOrders: totalOrders ?? this.totalOrders,
+      createdAt: createdAt ?? this.createdAt,
+      updatedAt: updatedAt ?? this.updatedAt,
     );
   }
 
@@ -58,6 +98,7 @@ class Kitchen {
       'cuisineTypes': cuisineTypes,
       'description': description,
       'isApproved': isApproved,
+      'isOpen': isOpen,
       'rating': rating,
       'totalOrders': totalOrders,
       'createdAt': createdAt.toIso8601String(),

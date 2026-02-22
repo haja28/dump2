@@ -795,14 +795,6 @@ class _MenuSearchScreenState extends State<MenuSearchScreen> {
                                   fontWeight: FontWeight.w500,
                                 ),
                               ),
-                              if (item.reviewCount != null)
-                                Text(
-                                  ' (${item.reviewCount})',
-                                  style: const TextStyle(
-                                    color: ThemeConfig.textSecondaryColor,
-                                    fontSize: 12,
-                                  ),
-                                ),
                             ],
                           ),
                       ],
